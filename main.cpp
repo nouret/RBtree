@@ -91,6 +91,15 @@ struct Elem{
             return G -> right;
         return G -> left;
     }
+    Elem * sibling(){
+        if (this == NULL)
+            return NULL;
+        if (parent == NULL)
+            return NULL;
+        if (parent -> left == this)
+            return parent -> right;
+        return parent -> left;
+    }
     void left_rotation(){
         if (!this -> real())
             return;
@@ -170,9 +179,6 @@ struct Elem{
         }
         Elem * U = uncle();
         Elem * G = grandparent();
-        Elem * N = this;
-        Elem * P = parent;
-        
         if (U -> color == RED){
             U -> color = BLACK;
             parent -> color = BLACK;
@@ -180,6 +186,8 @@ struct Elem{
             G -> push_update();
             return;
         }
+        Elem * N = this;
+        Elem * P = parent;
         //U -> color = BLACK;
         //G -> color = BLACK;
         if (G -> left == P && P -> right == N){
@@ -235,23 +243,206 @@ struct Tree{
             h = h -> parent;
         }
         h -> recount_sum();
+        now -> recount_sum();
+        now -> parent -> recount_sum();
         now -> push_update();
         while (root -> parent != NULL){
             root = root -> parent;
         }
+    }
+    void del(double key){
+        Elem * now = root;
+        Elem * h, x;
+        while (now -> real()){
+            if (key == now -> val){
+                if (now -> count > 1){
+                    --(now -> count);
+                    return;
+                }
+                break;
+            }
+            if (key < now -> val)
+                now = now -> left;
+            else
+                now = now -> right;
+        }
+        if (!now -> real())
+            return;
+        if (now -> left -> real() && now -> right -> real()){
+            h = now -> left;
+            while (h -> right -> real()){
+                h = h -> right;
+            }
+            swap(h -> val, now -> val);
+            swap(h -> count, now -> count);
+            now = h;
+        }
+        h = now;
+        while (h -> parent != NULL){
+            h -> sum --;
+            h = h -> parent;
+        }
+        //now -> right != real || now -> left != real;
+        if (now -> color == RED){
+            //now -> right != real && now -> left != real;
+            if (now -> parent != NULL){
+                if (now -> parent -> left == now){
+                    now -> parent -> left = now -> left;
+                    now -> left -> parent = now -> parent;
+                }
+                else{
+                    now -> parent -> right = now -> left;
+                    now -> left -> parent = now -> parent;
+                }
+            }
+            else{
+                root = now -> left;
+                root -> parent = NULL;
+            }
+            //we must delete 2 vertex now, but i realy don't now how to do it.
+            return;
+        }
+        else{
+            if (now -> left -> color == RED){
+                now -> left -> color = BLACK;
+                if (now -> parent != NULL){
+                    if (now -> parent -> left == now){
+                        now -> parent -> left = now -> left;
+                        now -> left -> parent = now -> parent;
+                    }
+                    else{
+                        now -> parent -> right = now -> left;
+                        now -> left -> parent = now -> parent;
+                    }
+                }
+                else{
+                    root = now -> left;
+                    root -> parent = NULL;
+                }
+                //we must delete 2 vertex now, but i realy don't now how to do it.
+                return;
+            }
+            if (now -> right -> color == RED){
+                now -> right -> color = BLACK;
+                if (now -> parent != NULL){
+                    if (now -> parent -> left == now){
+                        now -> parent -> left = now -> right;
+                        now -> right -> parent = now -> parent;
+                    }
+                    else{
+                        now -> parent -> right = now -> right;
+                        now -> right -> parent = now -> parent;
+                    }
+                }
+                else{
+                    root = now -> right;
+                    root -> parent = NULL;
+                }
+                //we must delete 2 vertex now, but i realy don't now how to do it.
+                return;
+            }
+            //now, now -> left and now -> right are black
+            // http://dic.academic.ru/dic.nsf/ruwiki/217111
+            Elem * N;
+            if (now -> left -> real())
+                N = now -> left;
+            else
+                N = now -> right;
+            if (now -> parent != NULL){
+                if (now -> parent -> left == now){
+                    now -> parent -> left = N;
+                    N -> parent = now -> parent;
+                }
+                else{
+                    now -> parent -> right = N;
+                    N -> parent = now -> parent;
+                }
+            }
+            else{
+                root = N;
+                root -> parent = NULL;
+            }
+            //OK, vertex is deleted
+            Elem * S;
+            Elem * P;
+            while (true){
+                //N - BLACK
+                S = N -> sibling();
+                P = N -> parent;
+                //S - real
+                if (N -> parent == NULL){//case1
+                    root = N;
+                    return;
+                }
+                if (S -> color == RED){//case2
+                    swap(S -> color, P -> color);
+                    if (P -> left == N){
+                        P -> left_rotation();
+                    }
+                    else{
+                        P -> right_rotation();
+                    }
+                    continue;
+                }
+                //S - BLACK
+                if (S -> right -> color == BLACK && S -> left -> color == BLACK && P -> color == BLACK){//case3
+                    S -> color = RED;
+                    N = P;
+                    continue;
+                }
+                if (S -> right -> color == BLACK && S -> left -> color == BLACK){//case4
+                    //P - RED
+                    P -> color = BLACK;
+                    S -> color = RED;
+                    break;
+                }
+                if (P -> left == N && S -> left -> color == RED && S -> right -> color == BLACK){//case5.1
+                    S -> color = RED;
+                    S -> left -> color = BLACK;
+                    S -> right_rotation();
+                    continue;
+                }
+                if (P -> right == N && S -> right -> color == RED && S -> left -> color == BLACK){//case5.2
+                    S -> color = RED;
+                    S -> right -> color = BLACK;
+                    S -> left_rotation();
+                    continue;
+                }
+                if (P -> left == N){//case 6.1, S -> right - RED
+                    swap(P -> color, S -> color);
+                    S -> right -> color = BLACK;
+                    P -> left_rotation();
+                    break;
+                }
+                if (P -> right == N){//case 6.1, S -> right - RED
+                    swap(P -> color, S -> color);
+                    S -> left -> color = BLACK;
+                    P -> right_rotation();
+                    break;
+                }
+            }
+        }
+        while (root -> parent != NULL)
+            root = root -> parent;
     }
 };
 
 int main(){
     freopen("input.txt", "r", stdin);
     freopen("output.txt", "w", stdout);
-    int N, val;
-    //lem * E;
+    int N, val, type;
     Tree T;
     cin >> N;
     for (int i = 0; i < N; i++){
-        cin >> val;
-        T.push(val);
+        cin >> type >> val;
+        if (type == 1){
+            T.push(val);
+        }
+        if (type == 2){
+            T.del(val);
+        }
+        cout << type << " " << val << endl;
+        T.root -> Print1();
+        cout << endl;
     }
-    T.root -> Print1();
 }
